@@ -1,0 +1,44 @@
+# Configuration du détecteur de distraction
+# Ajuste ces valeurs selon ton setup
+
+detection:
+  # Seuil d'angle de la tête (en degrés)
+  # Plus le pitch est négatif, plus tu regardes vers le bas
+  pitch_threshold: -15  # Déclenche si tête inclinée > 15° vers le bas
+
+  # Durée avant alerte (en secondes)
+  # Évite les faux positifs quand tu regardes brièvement
+  min_duration: 2.0
+
+  # Cooldown entre alertes (en secondes)
+  alert_cooldown: 10.0
+
+yolo:
+  # Activer la détection de téléphone avec YOLO
+  enabled: true
+  # Confiance minimum pour détecter un téléphone
+  confidence: 0.5
+  # Classe "cell phone" dans COCO = 67
+  phone_class_id: 67
+
+camera:
+  # Index de la caméra (0 = webcam par défaut)
+  index: 0
+  # Résolution (plus bas = plus rapide)
+  width: 640
+  height: 480
+  fps: 30
+
+alert:
+  # Volume du son (0.0 à 1.0)
+  volume: 0.7
+  # Nombre d'images à afficher
+  num_images: 4
+  # Durée d'affichage des images (secondes)
+  display_duration: 5
+
+logging:
+  # Activer le logging des statistiques
+  enabled: true
+  # Fichier de log (dans ./logs/)
+  filename: "distraction_stats.json"
