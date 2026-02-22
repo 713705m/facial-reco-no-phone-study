@@ -1,0 +1,32 @@
+# Environnement virtuel
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Modèles ML (téléchargés automatiquement)
+config/face_landmarker.task
+yolov8n.pt
+*.pt
+*.task
+
+# Logs générés à l'exécution
+logs/
+
+# Memes (images personnelles)
+memes/*
+!memes/.gitkeep
+memes-focus/*
+memes-telephone/*
+
+# IDE
+.vscode/
+.idea/

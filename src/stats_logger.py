@@ -1,6 +1,6 @@
 """
 Logging des statistiques de distraction.
-Permet de suivre tes progrès et générer des rapports.
+Permet de suivre tes progres et generer des rapports.
 """
 import json
 from datetime import datetime
@@ -11,7 +11,7 @@ from typing import Optional
 
 @dataclass
 class DistractionEvent:
-    """Un événement de distraction."""
+    """Un evenement de distraction."""
     timestamp: str
     duration: float  # secondes
     pitch_angle: float
@@ -37,7 +37,7 @@ class StatsLogger:
         """
         Args:
             log_dir: Dossier pour les fichiers de log
-            enabled: Activer/désactiver le logging
+            enabled: Activer/desactiver le logging
         """
         self.log_dir = Path(log_dir)
         self.enabled = enabled
@@ -101,37 +101,37 @@ class StatsLogger:
         with open(filename, 'w') as f:
             json.dump(asdict(stats), f, indent=2)
 
-        print(f"Stats sauvegardées: {filename}")
+        print(f"Stats sauvegardees: {filename}")
 
     def print_summary(self):
-        """Affiche un résumé de la session."""
+        """Affiche un resume de la session."""
         stats = self.get_session_stats()
 
         print("\n" + "=" * 50)
-        print("RÉSUMÉ DE LA SESSION")
+        print("RESUME DE LA SESSION")
         print("=" * 50)
-        print(f"Durée totale: {self._format_duration((datetime.now() - self.session_start).total_seconds())}")
+        print(f"Duree totale: {self._format_duration((datetime.now() - self.session_start).total_seconds())}")
         print(f"Nombre de distractions: {stats.total_distractions}")
         print(f"Temps total distrait: {self._format_duration(stats.total_distraction_time)}")
-        print(f"Durée moyenne: {stats.average_distraction_duration:.1f}s")
+        print(f"Duree moyenne: {stats.average_distraction_duration:.1f}s")
         print("=" * 50)
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
-        """Formate une durée en minutes:secondes."""
+        """Formate une duree en minutes:secondes."""
         mins = int(seconds // 60)
         secs = int(seconds % 60)
         return f"{mins}m {secs}s"
 
     def load_history(self, days: int = 7) -> list[SessionStats]:
-        """Charge l'historique des sessions récentes."""
+        """Charge l'historique des sessions recentes."""
         sessions = []
 
         for f in sorted(self.log_dir.glob("session_*.json"), reverse=True):
             try:
                 with open(f) as fp:
                     data = json.load(fp)
-                    # Vérifier si assez récent
+                    # Verifier si assez recent
                     start = datetime.fromisoformat(data['start_time'])
                     if (datetime.now() - start).days <= days:
                         sessions.append(SessionStats(**data))
@@ -145,7 +145,7 @@ class StatsLogger:
         sessions = self.load_history(days=7)
 
         if not sessions:
-            print("Aucune donnée cette semaine.")
+            print("Aucune donnee cette semaine.")
             return
 
         total_distractions = sum(s.total_distractions for s in sessions)

@@ -1,100 +1,74 @@
 """
-Estimation de la pose de la tête à partir des landmarks MediaPipe.
-Calcule pitch (haut/bas), yaw (gauche/droite), roll (inclinaison).
+Estimation de la pose de la tete via la matrice de transformation MediaPipe FaceLandmarker.
+
+Comment ca marche :
+------------------
+MediaPipe FaceLandmarker detecte 478 landmarks sur le visage et calcule en interne
+une matrice de transformation 4x4 qui decrit exactement comment le visage est oriente
+dans l'espace 3D par rapport a la camera.
+
+Cette matrice transforme du "canonical face space" vers le "camera space" :
+  - Canonical face space : le visage dans une position neutre standard (modele 3D interne)
+  - Camera space : le systeme de coordonnees de la camera (X droite, Y bas, Z vers l'ecran)
+
+La matrice 4x4 a la forme :
+  [ R  | t ]   R = matrice de rotation 3x3
+  [ 0  | 1 ]   t = vecteur de translation 3x1
+
+On extrait R et on calcule les angles d'Euler (ZYX convention) :
+  - yaw  : rotation autour de Y = tourner la tete gauche/droite
+  - pitch : rotation autour de X = incliner la tete haut/bas
+  - roll  : rotation autour de Z = pencher la tete sur le cote
+
+Pourquoi c'est mieux que solvePnP avec 6 points :
+  - MediaPipe utilise 478 landmarks -> beaucoup plus stable
+  - Son modele 3D est ajuste pour chaque visage -> pas de biais "visage generique"
+  - La matrice est directement issue du pipeline de reconstruction 3D de MediaPipe
 """
 import numpy as np
 import cv2
 
 
-# Points 3D de référence d'un visage générique (en mm)
-# Basé sur un modèle anthropométrique standard
-MODEL_POINTS = np.array([
-    (0.0, 0.0, 0.0),             # Nez (tip)
-    (0.0, -330.0, -65.0),        # Menton
-    (-225.0, 170.0, -135.0),     # Coin œil gauche
-    (225.0, 170.0, -135.0),      # Coin œil droit
-    (-150.0, -150.0, -125.0),    # Coin bouche gauche
-    (150.0, -150.0, -125.0)      # Coin bouche droit
-], dtype=np.float64)
-
-# Indices des landmarks MediaPipe correspondants
-LANDMARK_INDICES = [1, 152, 33, 263, 61, 291]
-
-
-def get_head_pose(landmarks, frame_width: int, frame_height: int) -> tuple[float, float, float]:
+def get_head_pose(transform_matrix: np.ndarray) -> tuple[float, float, float]:
     """
-    Calcule les angles de rotation de la tête.
+    Calcule les angles de rotation depuis la matrice 4x4 de MediaPipe.
 
     Args:
-        landmarks: Wrapper contenant landmarks MediaPipe (liste d'objets avec x, y, z)
-        frame_width: Largeur de l'image
-        frame_height: Hauteur de l'image
+        transform_matrix: Matrice 4x4 numpy (canonical face space -> camera space)
 
     Returns:
-        Tuple (pitch, yaw, roll) en degrés
-        - pitch: positif = regarde vers le haut, négatif = vers le bas
-        - yaw: positif = tourne à droite, négatif = à gauche
-        - roll: inclinaison latérale de la tête
+        Tuple (pitch, yaw, roll) en degres
+        - pitch: + = regard vers le haut, - = vers le bas
+        - yaw: tourne gauche/droite
+        - roll: inclinaison laterale
     """
-    # Extraire les points 2D des landmarks
-    image_points = []
-    landmark_list = landmarks.landmark
+    R = transform_matrix[:3, :3]
 
-    for idx in LANDMARK_INDICES:
-        lm = landmark_list[idx]
-        # MediaPipe Tasks retourne des coordonnées normalisées (0-1)
-        x = lm.x * frame_width
-        y = lm.y * frame_height
-        image_points.append((x, y))
-
-    image_points = np.array(image_points, dtype=np.float64)
-
-    # Matrice de caméra approximative
-    focal_length = frame_width
-    center = (frame_width / 2, frame_height / 2)
-    camera_matrix = np.array([
-        [focal_length, 0, center[0]],
-        [0, focal_length, center[1]],
-        [0, 0, 1]
-    ], dtype=np.float64)
-
-    # Pas de distorsion
-    dist_coeffs = np.zeros((4, 1))
-
-    # Résoudre PnP pour trouver la rotation
-    success, rotation_vector, translation_vector = cv2.solvePnP(
-        MODEL_POINTS,
-        image_points,
-        camera_matrix,
-        dist_coeffs,
-        flags=cv2.SOLVEPNP_ITERATIVE
-    )
-
-    if not success:
-        return 0.0, 0.0, 0.0
-
-    # Convertir vecteur de rotation en matrice
-    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
-
-    # Extraire les angles d'Euler
-    # Utilise la décomposition de la matrice de rotation
-    sy = np.sqrt(rotation_matrix[0, 0] ** 2 + rotation_matrix[1, 0] ** 2)
+    # Decomposition ZYX des angles d'Euler depuis la matrice de rotation
+    # sy = norme de la premiere colonne (indicateur de gimbal lock si proche de 0)
+    sy = np.sqrt(R[0, 0] ** 2 + R[1, 0] ** 2)
 
     if sy > 1e-6:
-        pitch = np.arctan2(-rotation_matrix[2, 0], sy)
-        yaw = np.arctan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
-        roll = np.arctan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
+        # Yaw : rotation autour de Y = tournement gauche/droite
+        yaw = np.arctan2(-R[2, 0], sy)
+
+        # Pitch : rotation autour de X = regard haut/bas
+        # Avec la matrice MediaPipe, x_rot est proche de 0° face camera
+        # Le signe est inverse : x_rot positif = nez vers le bas, negatif = nez vers le haut
+        # On inverse pour avoir pitch positif = regard vers le haut
+        pitch = -np.arctan2(R[2, 1], R[2, 2])
+
+        # Roll : rotation autour de Z = inclinaison laterale
+        roll = np.arctan2(R[1, 0], R[0, 0])
     else:
-        pitch = np.arctan2(-rotation_matrix[2, 0], sy)
-        yaw = np.arctan2(-rotation_matrix[1, 2], rotation_matrix[1, 1])
-        roll = 0
+        # Gimbal lock (tete pointant directement vers le haut ou le bas)
+        x_rot = np.arctan2(-R[1, 2], R[1, 1])
+        pitch = np.sign(x_rot) * (np.abs(x_rot) - np.pi)
+        yaw = np.arctan2(-R[2, 0], sy)
+        roll = 0.0
 
-    # Convertir en degrés
-    pitch = np.degrees(pitch)
-    yaw = np.degrees(yaw)
-    roll = np.degrees(roll)
-
-    return pitch, yaw, roll
+    # Conversion en float Python (evite les float32 numpy non serialisables en JSON)
+    return float(np.degrees(pitch)), float(np.degrees(yaw)), float(np.degrees(roll))
 
 
 def draw_pose_info(frame, pitch: float, yaw: float, roll: float, is_distracted: bool):
