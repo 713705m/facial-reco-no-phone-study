@@ -2,6 +2,10 @@
 
 Un système de Computer Vision en temps réel qui détecte quand tu regardes ton téléphone au lieu de travailler, et t'alerte avec un son + des memes motivants.
 
+| Regard hors de la zone de focus | Téléphone détecté |
+|:---:|:---:|
+| ![Alerte distraction : tête levée hors de la zone de focus](docs/demo-distraction.png) | ![Alerte téléphone : smartphone détecté par YOLOv8](docs/demo-telephone.png) |
+
 ```bash
 source venv/bin/activate && python main.py
 ```
