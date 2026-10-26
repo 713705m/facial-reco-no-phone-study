@@ -21,7 +21,6 @@ source venv/bin/activate && python main.py
 - [Utilisation](#utilisation)
 - [Configuration](#configuration)
 - [Structure du projet](#structure-du-projet)
-- [Plus-values CV](#plus-values-cv)
 - [Axes d'amélioration](#axes-damélioration)
 
 ---
